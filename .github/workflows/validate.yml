@@ -1,0 +1,18 @@
+name: Validate polls
+
+on:
+  push:
+    paths: ['data/polls.json', 'src/**', 'scripts/**']
+  pull_request:
+    paths: ['data/polls.json', 'src/**', 'scripts/**']
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: node scripts/check.mjs

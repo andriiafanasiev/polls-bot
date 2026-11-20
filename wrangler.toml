@@ -1,0 +1,21 @@
+name = "polls-bot"
+main = "src/worker.js"
+compatibility_date = "2026-11-01"
+
+# Every 30 min, 09:00–14:30 UTC = 11:00–16:30 Kyiv in winter, 12:00–17:30 in summer.
+# Covers the 12:00 / 12:30 / 13:00 / 15:00 slots all year, no DST edits needed.
+[triggers]
+crons = ["*/30 9-14 * * *"]
+
+[vars]
+TELEGRAM_CHAT_ID = "@andridev"
+MAX_LATE_HOURS = "3"
+
+# Create it once: npx wrangler kv namespace create POSTED
+# and paste the printed id below.
+[[kv_namespaces]]
+binding = "POSTED"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+[observability]
+enabled = true

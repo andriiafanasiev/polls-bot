@@ -1,7 +1,7 @@
 # Andrii Dev — Telegram quiz & poll bot
 
 Posts frontend & AI quizzes and polls from `data/polls.json` to a Telegram channel on schedule.
-Runs on GitHub Actions: no server, no dependencies, Node 22+.
+Runs on Cloudflare Workers with a Cron Trigger: free, on time, no server to look after.
 
 <p align="center">
   <img src="docs/quiz.png" width="420" alt="A quiz posted by the bot: question, four options with results, the correct one marked, and the explanation">
@@ -12,28 +12,45 @@ Runs on GitHub Actions: no server, no dependencies, Node 22+.
 
 ```mermaid
 flowchart LR
-    A[GitHub Actions cron<br/>every 30 min] --> B[post-polls.mjs]
-    B -->|reads| C[(data/polls.json)]
-    B -->|reads| D[(data/posted.json)]
+    A[Cron Trigger<br/>every 30 min] --> B[Cloudflare Worker]
+    B -->|bundled| C[(data/polls.json)]
+    B -->|already posted?| D[(KV: POSTED)]
     B -->|sendPoll| E[Telegram channel]
-    B -->|commits posted ids| D
+    B -->|mark as posted| D
 ```
 
-- The workflow runs every 30 minutes between 12:00 and 16:30 Kyiv time.
-- The script picks polls whose `at` time has already passed (but no more than 3 hours ago) and that are not yet listed in `data/posted.json`.
-- It sends them via `sendPoll`, then records their ids in `data/posted.json` and commits the file. No duplicates.
+- The Cron Trigger fires every 30 minutes, 09:00–14:30 UTC (11:00–16:30 Kyiv in winter, 12:00–17:30 in summer).
+- The Worker picks polls whose `at` time has passed (no more than 3 hours ago) and that aren't in the `POSTED` KV namespace yet.
+- It sends them via `sendPoll` and stores each id in KV. No duplicates.
+- `data/polls.json` is bundled into the Worker, so editing polls = commit + deploy.
 
-## Setup (~5 min)
+## Setup
 
-1. **Create a bot**: message [@BotFather](https://t.me/BotFather) → `/newbot` → copy the token.
-2. **Add the bot to your channel as an admin** with the "Post messages" permission.
-3. **Add repository secrets**: Settings → Secrets and variables → Actions → New repository secret
+1. **Bot**: create it with [@BotFather](https://t.me/BotFather) and add it to the channel as an admin with the "Post messages" permission.
+2. **KV namespace**: Cloudflare dashboard → Storage & Databases → KV → Create → name it `polls-bot-posted`. Copy its **ID** into `wrangler.toml` instead of `REPLACE_WITH_KV_NAMESPACE_ID`, then commit.
+   (CLI: `npx wrangler kv namespace create POSTED`.)
+3. **Connect the repo**: Workers & Pages → Create → Import a repository → `polls-bot`. Leave the build command empty; the deploy command is `npx wrangler deploy`. Every push to `main` deploys automatically.
+4. **Secrets**: Worker → Settings → Variables and Secrets → add as **Secret**:
    - `TELEGRAM_BOT_TOKEN` — the token from BotFather
-   - `TELEGRAM_CHAT_ID` — `@andridev` (or a numeric chat id)
-4. **Allow the workflow to commit**: Settings → Actions → General → Workflow permissions → **Read and write permissions**.
-5. **Test it**: Actions → "Post Telegram polls" → Run workflow → `dry_run: true`. The logs show what would be sent.
+   - `RUN_TOKEN` — any long random string, protects manual runs
+   
+   `TELEGRAM_CHAT_ID` (`@andridev`) and `MAX_LATE_HOURS` are plain vars in `wrangler.toml`.
+5. **Check it**: open `https://polls-bot.<your-subdomain>.workers.dev/` — you should see `"ok": true` and the next poll.
 
-> Tip: point `TELEGRAM_CHAT_ID` at a private test channel first.
+## Endpoints
+
+| Request | What it does |
+| --- | --- |
+| `GET /` | Health check: validation status, total polls, the next one |
+| `POST /run` | Manual run (header `Authorization: Bearer <RUN_TOKEN>`) |
+| `POST /run?dry=1` | Show what would be posted now, without posting |
+| `POST /run?dry=1&now=2026-11-21T15:05:00%2B02:00` | Preview any moment |
+| `POST /run?maxLate=8` | Post polls missed up to 8 hours ago |
+
+```bash
+curl -X POST -H "Authorization: Bearer $RUN_TOKEN" \
+  "https://polls-bot.<your-subdomain>.workers.dev/run?dry=1"
+```
 
 ## `data/polls.json` format
 
@@ -52,31 +69,28 @@ flowchart LR
 - `type`: `quiz` or `regular` (a regular poll has no `correct` or `explanation`)
 - `correct`: index of the correct option, zero-based
 - `at`: always include the UTC offset — `+02:00` in winter, `+03:00` in summer
-- Telegram limits: question ≤ 300 chars, option ≤ 100, explanation ≤ 200, 2–10 options. `npm run check` validates all of this, and the workflow sends nothing if the file is invalid.
+- Telegram limits: question ≤ 300 chars, option ≤ 100, explanation ≤ 200, 2–10 options. The Worker refuses to post anything if the file is invalid, and the **Validate polls** GitHub Action checks every push.
 
-## Running locally
+## Local development
 
 ```bash
-npm run check                                      # validate polls.json
-NOW=2026-11-20T13:05:00+02:00 npm run dry          # what would be sent at that moment
-TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=@test npm run post
+npm install
+npm run check                                        # validate polls.json
+NOW=2026-11-21T15:05:00+02:00 npm run check          # preview what is due at that moment
+npm run dev                                          # local Worker; trigger cron at /__scheduled
+npm run deploy                                       # deploy from your machine
+npm run logs                                         # live logs
 ```
 
-<img src="docs/term.png" width="720" alt="Terminal output: validation passes, nothing due at 10:00, the 13:00 quiz is picked up at 13:05">
+For `npm run dev`, put secrets in `.dev.vars` (git-ignored):
 
-| Env variable | Description |
-| --- | --- |
-| `TELEGRAM_BOT_TOKEN` | Bot token (required unless `DRY_RUN=1`) |
-| `TELEGRAM_CHAT_ID` | `@channel` or numeric chat id (required unless `DRY_RUN=1`) |
-| `DRY_RUN=1` | Print payloads, don't call Telegram, don't save state |
-| `NOW` | Fake the current time (ISO date), for testing |
-| `MAX_LATE_HOURS` | Skip polls older than this many hours (default `3`) |
-| `CHECK_ONLY=1` | Only validate `polls.json` |
+```
+TELEGRAM_BOT_TOKEN=...
+RUN_TOKEN=...
+```
 
 ## Notes
 
-- **Cron delays**: GitHub may start scheduled runs 5–15 minutes late at busy times. Fine for polls.
-- **Missed polls**: a poll that couldn't be posted within 3 hours of its `at` time (e.g. Actions outage) is skipped rather than posted late. Tune with `MAX_LATE_HOURS`.
-- **Private repo**: ~10 runs/day ≈ 300 of the 2,000 free minutes per month. Public repos are unlimited.
-- **Daylight saving time** (from late March): change the cron to `*/30 9-13 * * *` and use `+03:00` in `at`.
-- **Inactive repos**: GitHub disables scheduled workflows after 60 days without commits. The bot commits `posted.json` itself, so it stays active while there's something to post.
+- **Missed polls**: a poll not posted within 3 hours of its `at` time is skipped rather than posted late. Change `MAX_LATE_HOURS` or use `/run?maxLate=N`.
+- **Free plan** is plenty: ~12 cron runs a day against 100,000 requests and 1,000 KV writes a day.
+- **Logs**: Worker → Logs in the dashboard (observability is enabled), or `npm run logs`.

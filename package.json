@@ -1,11 +1,15 @@
 {
-  "name": "andridev-polls-bot",
+  "name": "polls-bot",
   "private": true,
   "type": "module",
   "engines": { "node": ">=22" },
   "scripts": {
-    "post": "node scripts/post-polls.mjs",
-    "check": "CHECK_ONLY=1 node scripts/post-polls.mjs",
-    "dry": "DRY_RUN=1 node scripts/post-polls.mjs"
+    "check": "node scripts/check.mjs",
+    "dev": "wrangler dev --test-scheduled",
+    "deploy": "wrangler deploy",
+    "logs": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
   }
 }
