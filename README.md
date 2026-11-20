@@ -3,7 +3,21 @@
 Posts frontend & AI quizzes and polls from `data/polls.json` to a Telegram channel on schedule.
 Runs on GitHub Actions: no server, no dependencies, Node 20+.
 
+<p align="center">
+  <img src="docs/quiz.png" width="420" alt="A quiz posted by the bot: question, four options with results, the correct one marked, and the explanation">
+</p>
+<p align="center"><sub>Illustration of a posted quiz after a reader answers (sample results).</sub></p>
+
 ## How it works
+
+```mermaid
+flowchart LR
+    A[GitHub Actions cron<br/>every 30 min] --> B[post-polls.mjs]
+    B -->|reads| C[(data/polls.json)]
+    B -->|reads| D[(data/posted.json)]
+    B -->|sendPoll| E[Telegram channel]
+    B -->|commits posted ids| D
+```
 
 - The workflow runs every 30 minutes between 12:00 and 16:30 Kyiv time.
 - The script picks polls whose `at` time has already passed (but no more than 3 hours ago) and that are not yet listed in `data/posted.json`.
@@ -47,6 +61,8 @@ npm run check                                      # validate polls.json
 NOW=2026-11-20T13:05:00+02:00 npm run dry          # what would be sent at that moment
 TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=@test npm run post
 ```
+
+<img src="docs/term.png" width="720" alt="Terminal output: validation passes, nothing due at 10:00, the 13:00 quiz is picked up at 13:05">
 
 | Env variable | Description |
 | --- | --- |
