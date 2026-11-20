@@ -1,27 +1,27 @@
-# Andrii Dev — бот для вікторин і опитувань
+# Andrii Dev — Telegram quiz & poll bot
 
-Публікує вікторини та опитування з `data/polls.json` у Telegram-канал за розкладом.
-Працює на GitHub Actions: без сервера, без залежностей, Node 20+.
+Posts frontend & AI quizzes and polls from `data/polls.json` to a Telegram channel on schedule.
+Runs on GitHub Actions: no server, no dependencies, Node 20+.
 
-## Як це працює
+## How it works
 
-- Кожні 30 хв з 12:00 до 16:30 за Києвом запускається workflow.
-- Скрипт бере опитування, в яких `at` уже настав (але не пізніше ніж 3 год тому) і яких ще немає в `data/posted.json`.
-- Відправляє їх через `sendPoll`, а id записує в `data/posted.json` і комітить. Дублів не буде.
+- The workflow runs every 30 minutes between 12:00 and 16:30 Kyiv time.
+- The script picks polls whose `at` time has already passed (but no more than 3 hours ago) and that are not yet listed in `data/posted.json`.
+- It sends them via `sendPoll`, then records their ids in `data/posted.json` and commits the file. No duplicates.
 
-## Налаштування (≈5 хв)
+## Setup (~5 min)
 
-1. **Створи бота**: напиши [@BotFather](https://t.me/BotFather) → `/newbot` → скопіюй токен.
-2. **Додай бота в канал адміном** з правом «Публікувати повідомлення».
-3. **Створи репозиторій** на GitHub і залий туди цю папку.
-4. **Додай секрети**: Settings → Secrets and variables → Actions → New repository secret
-   - `TELEGRAM_BOT_TOKEN` — токен від BotFather
-   - `TELEGRAM_CHAT_ID` — `@andridev`
-5. **Перевір**: Actions → «Post Telegram polls» → Run workflow → `dry_run: true`. У логах побачиш, що б відправилось.
+1. **Create a bot**: message [@BotFather](https://t.me/BotFather) → `/newbot` → copy the token.
+2. **Add the bot to your channel as an admin** with the "Post messages" permission.
+3. **Add repository secrets**: Settings → Secrets and variables → Actions → New repository secret
+   - `TELEGRAM_BOT_TOKEN` — the token from BotFather
+   - `TELEGRAM_CHAT_ID` — `@andridev` (or a numeric chat id)
+4. **Allow the workflow to commit**: Settings → Actions → General → Workflow permissions → **Read and write permissions**.
+5. **Test it**: Actions → "Post Telegram polls" → Run workflow → `dry_run: true`. The logs show what would be sent.
 
-> Щоб перевірити на собі, спочатку постав у `TELEGRAM_CHAT_ID` свій приватний тестовий канал.
+> Tip: point `TELEGRAM_CHAT_ID` at a private test channel first.
 
-## Формат `data/polls.json`
+## `data/polls.json` format
 
 ```json
 {
@@ -35,23 +35,32 @@
 }
 ```
 
-- `type`: `quiz` (вікторина) або `regular` (звичайне опитування — без `correct` і `explanation`)
-- `correct` — індекс правильного варіанта, рахуємо з 0
-- `at` — завжди з часовим поясом: взимку `+02:00`, влітку `+03:00`
-- Ліміти Telegram: питання ≤ 300 символів, варіант ≤ 100, пояснення ≤ 200, від 2 до 10 варіантів. `npm run check` перевіряє все це, і workflow не відправить нічого, якщо файл невалідний.
+- `type`: `quiz` or `regular` (a regular poll has no `correct` or `explanation`)
+- `correct`: index of the correct option, zero-based
+- `at`: always include the UTC offset — `+02:00` in winter, `+03:00` in summer
+- Telegram limits: question ≤ 300 chars, option ≤ 100, explanation ≤ 200, 2–10 options. `npm run check` validates all of this, and the workflow sends nothing if the file is invalid.
 
-## Локально
+## Running locally
 
 ```bash
-npm run check                                      # валідація
-NOW=2026-11-20T13:05:00+02:00 npm run dry          # що б відправилось у цей момент
+npm run check                                      # validate polls.json
+NOW=2026-11-20T13:05:00+02:00 npm run dry          # what would be sent at that moment
 TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=@test npm run post
 ```
 
-## Нюанси
+| Env variable | Description |
+| --- | --- |
+| `TELEGRAM_BOT_TOKEN` | Bot token (required unless `DRY_RUN=1`) |
+| `TELEGRAM_CHAT_ID` | `@channel` or numeric chat id (required unless `DRY_RUN=1`) |
+| `DRY_RUN=1` | Print payloads, don't call Telegram, don't save state |
+| `NOW` | Fake the current time (ISO date), for testing |
+| `MAX_LATE_HOURS` | Skip polls older than this many hours (default `3`) |
+| `CHECK_ONLY=1` | Only validate `polls.json` |
 
-- **Затримки GitHub cron**: запуск може запізнитися на 5–15 хв у години пік. Для опитувань це не критично.
-- **Пропущені**: якщо опитування не вийшло протягом 3 год після `at` (наприклад, Actions лежали), його буде пропущено, а не викладено пізно. Змінюється через `MAX_LATE_HOURS`.
-- **Приватний репозиторій**: ~10 запусків на день ≈ 300 хв/міс із 2000 безкоштовних. Публічний — без ліміту.
-- **Літній час** (з кінця березня): зсунь cron на `*/30 9-13 * * *` і пиши `+03:00` в `at`.
-- **Неактивні репо**: GitHub вимикає cron після 60 днів без комітів. Тут бот сам комітить `posted.json`, тож поки є що постити — все ок.
+## Notes
+
+- **Cron delays**: GitHub may start scheduled runs 5–15 minutes late at busy times. Fine for polls.
+- **Missed polls**: a poll that couldn't be posted within 3 hours of its `at` time (e.g. Actions outage) is skipped rather than posted late. Tune with `MAX_LATE_HOURS`.
+- **Private repo**: ~10 runs/day ≈ 300 of the 2,000 free minutes per month. Public repos are unlimited.
+- **Daylight saving time** (from late March): change the cron to `*/30 9-13 * * *` and use `+03:00` in `at`.
+- **Inactive repos**: GitHub disables scheduled workflows after 60 days without commits. The bot commits `posted.json` itself, so it stays active while there's something to post.
