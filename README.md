@@ -67,7 +67,7 @@ curl -X POST -H "Authorization: Bearer $RUN_TOKEN" \
 ```
 
 - `type`: `quiz` or `regular` (a regular poll has no `correct` or `explanation`)
-- `correct`: index of the correct option, zero-based
+- `correct`: index of the correct option, zero-based, or an array of indexes for a quiz with several correct answers. Sent as `correct_option_ids` (Bot API 9.6+)
 - `at`: always include the UTC offset — `+02:00` in winter, `+03:00` in summer
 - Telegram limits: question ≤ 300 chars, option ≤ 100, explanation ≤ 200, 2–10 options. The Worker refuses to post anything if the file is invalid, and the **Validate polls** GitHub Action checks every push.
 

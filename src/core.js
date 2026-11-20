@@ -29,8 +29,10 @@ export function validate(polls) {
     }
 
     if (p.type === 'quiz') {
-      if (!Number.isInteger(p.correct) || p.correct < 0 || p.correct >= (p.options?.length ?? 0))
-        errors.push(`${tag} "correct" must be a valid option index (0-based)`);
+      const correct = correctIds(p);
+      const n = p.options?.length ?? 0;
+      if (!correct.length || correct.some((i) => !Number.isInteger(i) || i < 0 || i >= n))
+        errors.push(`${tag} "correct" must be a valid option index (0-based) or an array of them`);
       if (p.explanation) {
         if (p.explanation.length > LIMITS.explanation)
           errors.push(`${tag} explanation is ${p.explanation.length} chars, max ${LIMITS.explanation}`);
@@ -40,6 +42,12 @@ export function validate(polls) {
     }
   }
   return errors;
+}
+
+/** `correct` may be one index or an array of indexes (multiple correct answers). */
+export function correctIds(p) {
+  const list = Array.isArray(p.correct) ? p.correct : [p.correct];
+  return [...new Set(list)].sort((a, b) => a - b);
 }
 
 /** Polls whose time has come, but not more than `maxLateMs` ago. Oldest first. */
@@ -72,7 +80,8 @@ export function buildPayload(p, chatId) {
     is_anonymous: true, // channel polls are always anonymous
   };
   if (p.type === 'quiz') {
-    body.correct_option_id = p.correct;
+    // Bot API 9.6+: correct_option_ids replaced correct_option_id (which is now ignored)
+    body.correct_option_ids = correctIds(p);
     if (p.explanation) body.explanation = p.explanation;
   }
   return body;
