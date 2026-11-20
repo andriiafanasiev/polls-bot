@@ -2,7 +2,7 @@
   "name": "andridev-polls-bot",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": { "node": ">=22" },
   "scripts": {
     "post": "node scripts/post-polls.mjs",
     "check": "CHECK_ONLY=1 node scripts/post-polls.mjs",

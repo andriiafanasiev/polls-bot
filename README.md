@@ -1,7 +1,7 @@
 # Andrii Dev — Telegram quiz & poll bot
 
 Posts frontend & AI quizzes and polls from `data/polls.json` to a Telegram channel on schedule.
-Runs on GitHub Actions: no server, no dependencies, Node 20+.
+Runs on GitHub Actions: no server, no dependencies, Node 22+.
 
 <p align="center">
   <img src="docs/quiz.png" width="420" alt="A quiz posted by the bot: question, four options with results, the correct one marked, and the explanation">
