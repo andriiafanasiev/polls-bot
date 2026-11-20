@@ -12,6 +12,10 @@ on:
         description: 'Dry run (do not post)'
         type: boolean
         default: false
+      max_late_hours:
+        description: 'Post polls missed up to N hours ago'
+        type: string
+        default: '3'
 
 permissions:
   contents: write
@@ -39,6 +43,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+          MAX_LATE_HOURS: ${{ inputs.max_late_hours || '3' }}
         run: npm run post
 
       - name: Save posted state
