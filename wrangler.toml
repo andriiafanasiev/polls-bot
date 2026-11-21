@@ -11,11 +11,10 @@ crons = ["*/30 9-14 * * *"]
 TELEGRAM_CHAT_ID = "@andridev"
 MAX_LATE_HOURS = "3"
 
-# Create it once: npx wrangler kv namespace create POSTED
-# and paste the printed id below.
+# KV namespace "polls-bot-posted"
 [[kv_namespaces]]
 binding = "POSTED"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "8b53af4c79dd4482bda031e231829b18"
 
 [observability]
 enabled = true

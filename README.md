@@ -27,7 +27,7 @@ flowchart LR
 ## Setup
 
 1. **Bot**: create it with [@BotFather](https://t.me/BotFather) and add it to the channel as an admin with the "Post messages" permission.
-2. **KV namespace**: Cloudflare dashboard → Storage & Databases → KV → Create → name it `polls-bot-posted`. Copy its **ID** into `wrangler.toml` instead of `REPLACE_WITH_KV_NAMESPACE_ID`, then commit.
+2. **KV namespace**: Cloudflare dashboard → Storage & Databases → KV → Create → name it `polls-bot-posted`. Put its **ID** into `wrangler.toml` (`kv_namespaces.id`) and commit.
    (CLI: `npx wrangler kv namespace create POSTED`.)
 3. **Connect the repo**: Workers & Pages → Create → Import a repository → `polls-bot`. Leave the build command empty; the deploy command is `npx wrangler deploy`. Every push to `main` deploys automatically.
 4. **Secrets**: Worker → Settings → Variables and Secrets → add as **Secret**:
